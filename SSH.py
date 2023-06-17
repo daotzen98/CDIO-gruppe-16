@@ -18,12 +18,15 @@ client.connect(host, port, username, password, look_for_keys=False)
 
 # _stdin, _stdout,_stderr = client.exec_command("./drive 5")
 # print(_stdout.read().decode())
+# The Parameters is in seconds="5", speed= 66 in percentage and backwards= Random characters):
 
 def drive(seconds="5", speed="66", backward=""):
     ssh_command = ".\drive" + seconds + " " + speed + " " + backward
     _stdin, _stdout, _stderr = client.exec_command(ssh_command)
     print(_stdout.read().decode())
-    print(ssh_command)
+    _stdin, _stdout, _stderr = client.exec_command("./drive 5, 20, random")
+    print(_stdout.read().decode())
+ #   print(ssh_command)
 
 drive()
 # client.exec_command("./drive 5 66 gfdst")
