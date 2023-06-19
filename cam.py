@@ -1,6 +1,27 @@
 import cv2
 import numpy as np
 import math
+import paramiko
+import time
+
+ip = "192.168.186.149"
+host = "ev3dev"
+port = "22"
+username = "robot"
+password = "maker"
+
+command = "df"
+
+client = paramiko.client.SSHClient()
+client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+client.connect(host, port, username, password, look_for_keys=False)
+
+def drive(seconds="5", speed="66", backward=""):
+    ssh_command = ".\drive" + seconds + " " + speed + " " + backward
+    _stdin, _stdout, _stderr = client.exec_command(ssh_command)
+    print(_stdout.read().decode())
+    _stdin, _stdout, _stderr = client.exec_command("./drive 5 20")
+    print(_stdout.read().decode())
 
 def calculate_distance(point1, point2):
     # Calculate the Euclidean distance between two points
@@ -128,6 +149,10 @@ def detect_table_tennis_balls_and_robots():
             angle = calculate_angle(robot_center, nearest_ball_center)
             print(f"Distance to nearest ball: {min_distance:.2f} pixels")
             print(f"Angle to face nearest ball: {angle:.2f} degrees")
+            if min_distance < 30:
+                drive()
+            else:
+                print("BEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEPPPPP")
 
         # Exit if 'q' is pressed
         if cv2.waitKey(1) & 0xFF == ord('q'):
