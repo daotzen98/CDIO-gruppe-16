@@ -16,11 +16,34 @@ client = paramiko.client.SSHClient()
 client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 client.connect(host, port, username, password, look_for_keys=False)
 
-def drive(seconds="5", speed="66", backward=""):
+def drive(seconds="5", speed="30", backward=""):
     ssh_command = ".\drive" + seconds + " " + speed + " " + backward
     _stdin, _stdout, _stderr = client.exec_command(ssh_command)
     print(_stdout.read().decode())
-    _stdin, _stdout, _stderr = client.exec_command("./drive 5 20")
+    _stdin, _stdout, _stderr = client.exec_command("./drive 5 2")
+    print(_stdout.read().decode())
+
+def lift(seconds="4.5", speed="66", backward=""):
+    ssh_command = ".\drive" + seconds + " " + speed + " " + backward
+    _stdin, _stdout, _stderr = client.exec_command(ssh_command)
+    print(_stdout.read().decode())
+    _stdin, _stdout, _stderr = client.exec_command("./lift 5, 20")
+    print(_stdout.read().decode())
+
+    
+def turn_right(seconds="5", speed="66", backward=""):
+    ssh_command = ".\drive" + seconds + " " + speed + " " + backward
+    _stdin, _stdout, _stderr = client.exec_command(ssh_command)
+    print(_stdout.read().decode())
+    _stdin, _stdout, _stderr = client.exec_command("./turn 10")
+    print(_stdout.read().decode())
+ #   print(ssh_command)
+
+def turn_left(seconds="5", speed="66", backward=""):
+    ssh_command = ".\drive" + seconds + " " + speed + " " + backward
+    _stdin, _stdout, _stderr = client.exec_command(ssh_command)
+    print(_stdout.read().decode())
+    _stdin, _stdout, _stderr = client.exec_command("./turn 0, 10")
     print(_stdout.read().decode())
 
 def calculate_distance(point1, point2):

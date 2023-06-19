@@ -13,6 +13,7 @@ ev3 = EV3Brick()
 left_motor = Motor(Port.B)
 right_motor = Motor(Port.C)
 shit_motor = Motor(Port.D)
+peter_motor = Motor(Port.A)
 
 # Initialize the drive base.
 robot = DriveBase(left_motor, right_motor, wheel_diameter=68.8, axle_track=150)
