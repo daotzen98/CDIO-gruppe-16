@@ -105,7 +105,7 @@ def detect_table_tennis_balls(frame, rect_bottom_left, rect_top_right):
 
 def detect_blue_and_green_robots(frame, rect_bottom_left, rect_top_right, min_robot_area):
     # Define the lower and upper boundaries for the green and blue color ranges
-    lower_yellow = np.array([10, 50, 10]) #np.array([35, 50, 50])
+    lower_yellow = np.array([20, 50, 50]) #np.array([35, 50, 50])
     upper_yellow = np.array([40, 255, 255]) #np.array([80, 255, 255])
     lower_black = np.array([0, 0, 0]) #np.array([100, 50, 50])
     upper_black = np.array([255, 255, 50]) #np.array([130, 255, 255])
@@ -151,6 +151,68 @@ def detect_blue_and_green_robots(frame, rect_bottom_left, rect_top_right, min_ro
 
     return green_robot, blue_robot
 
+def detect_red_lines(frame):
+    # Convert the frame to HSV color space
+    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+
+    # Define the lower and upper boundaries for the red color range
+    lower_red = np.array([0, 50, 50])
+    upper_red = np.array([10, 255, 255])
+    lower_red2 = np.array([170, 50, 50])
+    upper_red2 = np.array([180, 255, 255])
+
+    # Create a mask for red regions
+    red_mask1 = cv2.inRange(hsv, lower_red, upper_red)
+    red_mask2 = cv2.inRange(hsv, lower_red2, upper_red2)
+    red_mask = cv2.bitwise_or(red_mask1, red_mask2)
+
+    # Apply morphological operations to remove noise
+    kernel = np.ones((5, 5), np.uint8)
+    red_mask = cv2.morphologyEx(red_mask, cv2.MORPH_OPEN, kernel)
+
+    # Apply Hough Line Transform to detect red lines
+    lines = cv2.HoughLinesP(red_mask, rho=1, theta=np.pi/180, threshold=50, minLineLength=100, maxLineGap=10)
+
+    if lines is not None:
+        detected_lines = []
+        for line in lines:
+            x1, y1, x2, y2 = line[0]
+            detected_lines.append(((x1, y1), (x2, y2)))
+
+        # Find intersection points of all possible combinations of two lines
+        intersection_points = find_intersection_points(detected_lines)
+        if intersection_points:
+            for point in intersection_points:
+                cv2.circle(frame, point, 5, (0, 255, 0), -1)
+
+        return detected_lines
+
+    return []
+
+def find_intersection_points(lines):
+    if len(lines) < 2:
+        return []
+
+    intersection_points = []
+    for i in range(len(lines)):
+        for j in range(i+1, len(lines)):
+            line1 = lines[i]
+            line2 = lines[j]
+
+            x1, y1 = line1[0]
+            x2, y2 = line1[1]
+            x3, y3 = line2[0]
+            x4, y4 = line2[1]
+
+            denominator = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4)
+
+            if denominator != 0:
+                intersection_x = ((x1 * y2 - y1 * x2) * (x3 - x4) - (x1 - x2) * (x3 * y4 - y3 * x4)) / denominator
+                intersection_y = ((x1 * y2 - y1 * x2) * (y3 - y4) - (y1 - y2) * (x3 * y4 - y3 * x4)) / denominator
+
+                intersection_points.append((int(intersection_x), int(intersection_y)))
+
+    return intersection_points
 
 
 def detect_table_tennis_balls_and_robots():
@@ -185,6 +247,15 @@ def detect_table_tennis_balls_and_robots():
 
         # Detect blue robots
         green_robot, blue_robot = detect_blue_and_green_robots(frame, rect_bottom_left, rect_top_right, min_area)
+
+        # Detect red lines and get the detected lines
+        detected_lines = detect_red_lines(frame)
+
+        # Draw the detected lines
+        if detected_lines:
+            for line in detected_lines:
+                p1, p2 = line
+                cv2.line(frame, p1, p2, (0, 0, 0), 2)
 
         # Draw detected circles for balls
         for (x, y, radius) in detected_balls:
