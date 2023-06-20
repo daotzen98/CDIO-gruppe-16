@@ -22,7 +22,7 @@ def drive(seconds="5", speed="30", backward=""):
     ssh_command = ".\drive" + seconds + " " + speed + " " + backward
     _stdin, _stdout, _stderr = client.exec_command(ssh_command)
     print(_stdout.read().decode())
-    _stdin, _stdout, _stderr = client.exec_command("./drive 5 2")
+    _stdin, _stdout, _stderr = client.exec_command("./drive 5 20")
     print(_stdout.read().decode())
 
 
@@ -65,23 +65,6 @@ def calculate_angle(robot_center, ball_center):
     delta_y = ball_center[1] - robot_center[1]
     return math.atan2(delta_y, delta_x) * 180 / math.pi
 
-
-def detect_table_tennis_balls_and_robots():
-    # Open the camera
-    cap = cv2.VideoCapture(0)
-
-    # Define the dimensions of the rectangle for ball detection
-    rect_bottom_left = (20, 20)
-    rect_top_right = (600, 450)  # Initial values (adjust as needed)
-
-    # Calculate the width and height of the rectangle
-    rect_width = rect_top_right[0] - rect_bottom_left[0]
-    rect_height = rect_top_right[1] - rect_bottom_left[1]
-
-    # Define the lower and upper boundaries for the blue color range
-    lower_blue = np.array([90, 50, 50])  # Adjust lower threshold for darker blue
-    upper_blue = np.array([130, 255, 255])
-
 def detect_table_tennis_balls(frame, rect_bottom_left, rect_top_right):
     # Convert the frame to grayscale
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -98,7 +81,7 @@ def detect_table_tennis_balls(frame, rect_bottom_left, rect_top_right):
     # Filter ball contours based on area and circularity
     min_ball_area = 30
     max_ball_area = 200
-    min_ball_circularity = 0.6
+    min_ball_circularity = 0.7
 
     detected_balls = []
 
@@ -122,17 +105,20 @@ def detect_table_tennis_balls(frame, rect_bottom_left, rect_top_right):
 
 def detect_blue_and_green_robots(frame, rect_bottom_left, rect_top_right, min_robot_area):
     # Define the lower and upper boundaries for the green and blue color ranges
-    lower_green = np.array([20, 100, 100]) #np.array([35, 50, 50])
-    upper_green = np.array([40, 255, 255]) #np.array([80, 255, 255])
-    lower_blue = np.array([0, 0, 0]) #np.array([100, 50, 50])
-    upper_blue = np.array([255, 255, 30]) #np.array([130, 255, 255])
+    lower_yellow = np.array([10, 50, 10]) #np.array([35, 50, 50])
+    upper_yellow = np.array([40, 255, 255]) #np.array([80, 255, 255])
+    lower_black = np.array([0, 0, 0]) #np.array([100, 50, 50])
+    upper_black = np.array([255, 255, 50]) #np.array([130, 255, 255])
+
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
     # Convert the frame to HSV color space
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+    grayHsv = (gray, cv2.COLOR_BGR2HSV)
 
     # Create masks for green and blue regions
-    green_mask = cv2.inRange(hsv, lower_green, upper_green)
-    blue_mask = cv2.inRange(hsv, lower_blue, upper_blue)
+    green_mask = cv2.inRange(hsv, lower_yellow, upper_yellow)
+    blue_mask = cv2.inRange(hsv, lower_black, upper_black)
 
     # Find contours for green and blue regions
     green_contours, _ = cv2.findContours(green_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -169,7 +155,7 @@ def detect_blue_and_green_robots(frame, rect_bottom_left, rect_top_right, min_ro
 
 def detect_table_tennis_balls_and_robots():
     # Open the camera
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
 
     # Define the dimensions of the rectangle for ball detection
     rect_bottom_left = (20, 20)
@@ -184,12 +170,15 @@ def detect_table_tennis_balls_and_robots():
     upper_blue = np.array([130, 255, 255])
     min_area = 500
 
+
     while True:
         # Read a frame from the camera
         ret, frame = cap.read()
 
         if not ret:
             break
+
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
         # Detect table tennis balls
         detected_balls = detect_table_tennis_balls(frame, rect_bottom_left, rect_top_right)
@@ -205,14 +194,17 @@ def detect_table_tennis_balls_and_robots():
         # Draw rectangles for robots
         if green_robot is not None:
             top_left, bottom_right = green_robot
-            cv2.rectangle(frame, top_left, bottom_right, (0, 255, 0), 2)
+            cv2.rectangle(frame, top_left, bottom_right, (0, 0, 255), 2)
 
         if blue_robot is not None:
             top_left, bottom_right = blue_robot
             cv2.rectangle(frame, top_left, bottom_right, (255, 0, 0), 2)
 
+        cv2.rectangle(frame, rect_top_right, rect_bottom_left, (255, 0, 0), 2)
+
         # Display the frame with detected balls and robots
         cv2.imshow("Table Tennis Ball and Blue Robot Detection", frame)
+        cv2.imshow("test", gray)
 
         # Print the coordinates of the detected balls
         for i, (x, y, radius) in enumerate(detected_balls):
@@ -239,10 +231,10 @@ def detect_table_tennis_balls_and_robots():
             angle = calculate_angle(robot_center, nearest_ball_center)
             print(f"Distance to nearest ball: {min_distance:.2f} pixels")
             print(f"Angle to face nearest ball: {angle:.2f} degrees")
-            if min_distance < 30:
-                drive()
-            else:
-                print("BEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEPPPPP")
+            #if min_distance > 30:
+                    # drive()
+            #else:
+                    # print("BEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEPPPPP")
 
         # Exit if 'q' is pressed
         if cv2.waitKey(1) & 0xFF == ord('q'):
