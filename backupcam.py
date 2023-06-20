@@ -4,7 +4,6 @@ import math
 import paramiko
 import time
 
-
 ip = "192.168.186.149"
 host = "ev3dev"
 port = "22"
@@ -15,7 +14,9 @@ command = "df"
 
 client = paramiko.client.SSHClient()
 client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-#client.connect(host, port, username, password, look_for_keys=False)
+
+
+# client.connect(host, port, username, password, look_for_keys=False)
 
 
 def drive(seconds="5", speed="30", backward=""):
@@ -65,15 +66,19 @@ def calculate_angle(robot_center, ball_center):
     delta_y = ball_center[1] - robot_center[1]
     return math.atan2(delta_y, delta_x) * 180 / math.pi
 
+
 def detect_table_tennis_balls(frame, rect_bottom_left, rect_top_right):
     # Convert the frame to grayscale
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
     # Apply Gaussian blur to reduce noise
-    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+    blurred = cv2.GaussianBlur(gray, (9, 9), 0)
 
     # Apply Canny edge detection
-    edges = cv2.Canny(blurred, 30, 100)
+    edges = cv2.Canny(blurred, 0, 100)
+
+    cv2.imshow("blurred", blurred)
+    cv2.imshow("test", edges)
 
     # Find contours in the edge image for ball detection
     ball_contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -102,13 +107,26 @@ def detect_table_tennis_balls(frame, rect_bottom_left, rect_top_right):
 
     return detected_balls
 
+    for contour in ball_contours:
+        area = cv2.contourArea(contour)
+
+        if min_ball_area < area < max_ball_area:
+            (x, y), radius = cv2.minEnclosingCircle(contour)
+            center = (int(x), int(y))
+            radius = int(radius)
+
+            if rect_bottom_left[0] < x < rect_top_right[0] and rect_bottom_left[1] < y < rect_top_right[1]:
+                detected_balls.append((x, y, radius))
+
+    return detected_balls
+
 
 def detect_black_and_yellow_robots(frame, rect_bottom_left, rect_top_right, min_robot_area):
     # Define the lower and upper boundaries for the yellow and black color ranges
-    lower_yellow = np.array([20, 50, 50]) #np.array([35, 50, 50])
-    upper_yellow = np.array([40, 255, 255]) #np.array([80, 255, 255])
-    lower_black = np.array([0, 0, 0]) #np.array([100, 50, 50])
-    upper_black = np.array([255, 255, 50]) #np.array([130, 255, 255])
+    lower_yellow = np.array([20, 50, 170])  # np.array([35, 50, 50])
+    upper_yellow = np.array([40, 255, 255])  # np.array([80, 255, 255])
+    lower_black = np.array([0, 0, 0])  # np.array([100, 50, 50])
+    upper_black = np.array([255, 255, 70])  # np.array([130, 255, 255])
 
     # Convert the frame to HSV color space
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
@@ -216,7 +234,6 @@ def detect_table_tennis_balls_and_robots():
 
     min_area = 500
 
-
     while True:
         # Read a frame from the camera
         ret, frame = cap.read()
@@ -263,40 +280,50 @@ def detect_table_tennis_balls_and_robots():
             top_left, bottom_right = black_robot
             cv2.rectangle(frame, top_left, bottom_right, (255, 0, 0), 2)
 
-        #cv2.rectangle(frame, rect_top_right, rect_bottom_left, (255, 0, 0), 2)
+        # cv2.rectangle(frame, rect_top_right, rect_bottom_left, (255, 0, 0), 2)
 
         # Display the frame with detected balls and robots
         cv2.imshow("Table Tennis Ball and Black Robot Detection", frame)
 
         # Print the coordinates of the detected balls
-        for i, (x, y, radius) in enumerate(detected_balls):
-            print(f"Ball {i + 1}: Coordinate ({x}, {y})")
+        # for i, (x, y, radius) in enumerate(detected_balls):
+        #    print(f"Ball {i + 1}: Coordinate ({x}, {y})")
 
         # Print the coordinates of the detected robots
-        if yellow_robot is not None:
-            print("Yellow Robot: Top Left =", yellow_robot[0], "Bottom Right =", yellow_robot[1])
+        # if yellow_robot is not None:
+        #    print("Yellow Robot: Top Left =", yellow_robot[0], "Bottom Right =", yellow_robot[1])
 
-        if black_robot is not None:
-            print("Black Robot: Top Left =", black_robot[0], "Bottom Right =", black_robot[1])
-
+        # if black_robot is not None:
+        #    print("Black Robot: Top Left =", black_robot[0], "Bottom Right =", black_robot[1])
 
         # Calculate the distance and angle between the robot and the nearest ball
         if detected_balls and black_robot:
-            robot_center = ((black_robot[0][0] + black_robot[1][0]) // 2,
-                            (black_robot[0][1] + black_robot[1][1]) // 2)
-            ball_centers = [(int(relative_x + rect_bottom_left[0]), int(rect_top_right[1] - relative_y))
-                           for relative_x, relative_y, _ in detected_balls]
-            distances = [calculate_distance(robot_center, ball_center) for ball_center in ball_centers]
+            black_robot_center = ((black_robot[0][0] + black_robot[1][0]) // 2,
+                                  (black_robot[0][1] + black_robot[1][1]) // 2)
+
+            yellow_robot_center = ((yellow_robot[0][0] + yellow_robot[1][0]) // 2,
+                                   (yellow_robot[0][1] + yellow_robot[1][1]) // 2)
+
+            ball_centers = [(int(x), int(y)) for (x, y, radius) in detected_balls]
+
+            distances = [calculate_distance(black_robot_center, ball_center) for ball_center in ball_centers]
             min_distance = min(distances)
             nearest_ball_index = distances.index(min_distance)
             nearest_ball_center = ball_centers[nearest_ball_index]
-            angle = calculate_angle(robot_center, nearest_ball_center)
+            angle = calculate_angle(yellow_robot_center, nearest_ball_center)
+
+            direction = calculate_angle(yellow_robot_center, black_robot_center)
+
+            print(f"the robot is pointing in the direction: {direction:.2f}")
             print(f"Distance to nearest ball: {min_distance:.2f} pixels")
             print(f"Angle to face nearest ball: {angle:.2f} degrees")
-            #if min_distance > 30:
-                    # drive()
-            #else:
-                    # print("BEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEPPPPP")
+            print(yellow_robot_center)
+            print(black_robot_center)
+            print(nearest_ball_center)
+            # if min_distance > 30:
+            # drive()
+            # else:
+            # print("BEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEPPPPP")
 
         # Exit if 'q' is pressed
         if cv2.waitKey(1) & 0xFF == ord('q'):
