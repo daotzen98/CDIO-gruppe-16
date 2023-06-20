@@ -228,8 +228,8 @@ def detect_table_tennis_balls_and_robots():
 
         # Calculate the distance and angle between the robot and the nearest ball
         if detected_balls and blue_robot:
-            robot_center = ((blue_robot[0][0][0] + blue_robot[0][1][0]) // 2,
-                            (blue_robot[0][0][1] + blue_robot[0][1][1]) // 2)
+            robot_center = ((blue_robot[0][0] + blue_robot[1][0]) // 2,
+                            (blue_robot[0][1] + blue_robot[1][1]) // 2)
             ball_centers = [(int(relative_x + rect_bottom_left[0]), int(rect_top_right[1] - relative_y))
                            for relative_x, relative_y, _ in detected_balls]
             distances = [calculate_distance(robot_center, ball_center) for ball_center in ball_centers]
