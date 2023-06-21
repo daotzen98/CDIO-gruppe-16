@@ -12,45 +12,59 @@ password = "maker"
 
 command = "df"
 
+
+
 client = paramiko.client.SSHClient()
 client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
 
-# client.connect(host, port, username, password, look_for_keys=False)
+client.connect(host, port, username, password, look_for_keys=False)
 
 
-def drive(seconds="5", speed="30", backward=""):
-    ssh_command = ".\drive" + seconds + " " + speed + " " + backward
+def drive(seconds="3", speed="50", backward=""):
+    ssh_command = "./drive " + seconds + " " + speed + " " + backward
     _stdin, _stdout, _stderr = client.exec_command(ssh_command)
-    print(_stdout.read().decode())
-    _stdin, _stdout, _stderr = client.exec_command("./drive 5 20")
-    print(_stdout.read().decode())
+    #print(_stdout.read().decode())
+    #_stdin, _stdout, _stderr = client.exec_command("./drive 3 60")
+    #print(_stdout.read().decode())
 
 
 def lift(seconds="4.5", speed="66", backward=""):
-    ssh_command = ".\drive" + seconds + " " + speed + " " + backward
-    _stdin, _stdout, _stderr = client.exec_command(ssh_command)
-    print(_stdout.read().decode())
-    _stdin, _stdout, _stderr = client.exec_command("./lift 5, 20")
-    print(_stdout.read().decode())
+    client.exec_command("./lift")
+    reverse()
+    time.sleep(4)
+    client.exec_command("./down")
+
+def ralese(seconds="4.5", speed="66", backward=""):
+    client.exec_command("./open")
+    reverse()
+    time.sleep(4)
 
 
-def turn_right(seconds="5", speed="66", backward=""):
-    ssh_command = ".\drive" + seconds + " " + speed + " " + backward
-    _stdin, _stdout, _stderr = client.exec_command(ssh_command)
-    print(_stdout.read().decode())
-    _stdin, _stdout, _stderr = client.exec_command("./turn 10")
-    print(_stdout.read().decode())
+def turn_right(seconds="5", turns="340", backward=""):
+    command = f'./lasthope {turns}'
+    _stdin, _stdout, _stderr = client.exec_command(command=command)
+    print(command)
+    #_stdin, _stdout, _stderr = client.exec_command("./turn 20000")
+    #print(_stdout.read().decode())
 
 
 #   print(ssh_command)
 
-def turn_left(seconds="5", speed="66", backward=""):
+def turn_left(seconds="5", speed="40", backward=""):
     ssh_command = ".\drive" + seconds + " " + speed + " " + backward
     _stdin, _stdout, _stderr = client.exec_command(ssh_command)
     print(_stdout.read().decode())
-    _stdin, _stdout, _stderr = client.exec_command("./turn 0, 10")
+    _stdin, _stdout, _stderr = client.exec_command("./turn 20000, 10")
     print(_stdout.read().decode())
+
+def reverse(seconds="5", speed="30", backward=""):
+    ssh_command = "./drive" + seconds + " " + speed + " " + backward
+    _stdin, _stdout, _stderr = client.exec_command(ssh_command)
+    print(_stdout.read().decode())
+    _stdin, _stdout, _stderr = client.exec_command("./drive 2 20 dsada")
+    print(_stdout.read().decode())
+
 
 
 def calculate_distance(point1, point2):
@@ -72,13 +86,11 @@ def detect_table_tennis_balls(frame, rect_bottom_left, rect_top_right):
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
     # Apply Gaussian blur to reduce noise
-    blurred = cv2.GaussianBlur(gray, (9, 9), 0)
+    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
 
     # Apply Canny edge detection
     edges = cv2.Canny(blurred, 0, 100)
-
-    cv2.imshow("blurred", blurred)
-    cv2.imshow("test", edges)
+    cv2.imshow("rest", edges)
 
     # Find contours in the edge image for ball detection
     ball_contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -86,7 +98,7 @@ def detect_table_tennis_balls(frame, rect_bottom_left, rect_top_right):
     # Filter ball contours based on area and circularity
     min_ball_area = 30
     max_ball_area = 200
-    min_ball_circularity = 0.7
+    min_ball_circularity = 0.5
 
     detected_balls = []
 
@@ -107,26 +119,13 @@ def detect_table_tennis_balls(frame, rect_bottom_left, rect_top_right):
 
     return detected_balls
 
-    for contour in ball_contours:
-        area = cv2.contourArea(contour)
-
-        if min_ball_area < area < max_ball_area:
-            (x, y), radius = cv2.minEnclosingCircle(contour)
-            center = (int(x), int(y))
-            radius = int(radius)
-
-            if rect_bottom_left[0] < x < rect_top_right[0] and rect_bottom_left[1] < y < rect_top_right[1]:
-                detected_balls.append((x, y, radius))
-
-    return detected_balls
-
 
 def detect_black_and_yellow_robots(frame, rect_bottom_left, rect_top_right, min_robot_area):
     # Define the lower and upper boundaries for the yellow and black color ranges
-    lower_yellow = np.array([20, 50, 170])  # np.array([35, 50, 50])
+    lower_yellow = np.array([20, 50, 200])  # np.array([35, 50, 50])
     upper_yellow = np.array([40, 255, 255])  # np.array([80, 255, 255])
     lower_black = np.array([0, 0, 0])  # np.array([100, 50, 50])
-    upper_black = np.array([255, 255, 70])  # np.array([130, 255, 255])
+    upper_black = np.array([255, 255, 50])  # np.array([130, 255, 255])
 
     # Convert the frame to HSV color space
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
@@ -221,6 +220,9 @@ def find_intersection_points(lines):
 
 
 def detect_table_tennis_balls_and_robots():
+    lastangle = 0
+    lifts = 0
+    count = 1000
     # Open the camera
     cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
 
@@ -241,7 +243,7 @@ def detect_table_tennis_balls_and_robots():
         if not ret:
             break
 
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
 
         # Detect table tennis balls
         detected_balls = detect_table_tennis_balls(frame, rect_bottom_left, rect_top_right)
@@ -250,26 +252,30 @@ def detect_table_tennis_balls_and_robots():
         yellow_robot, black_robot = detect_black_and_yellow_robots(frame, rect_bottom_left, rect_top_right, min_area)
 
         # Detect red lines and get the detected lines
-        detected_lines = detect_red_lines(frame)
+        # detected_lines = detect_red_lines(frame)
 
         # Find intersection points of the lines
-        intersection_points = find_intersection_points(detected_lines)
+        # intersection_points = find_intersection_points(detected_lines)
 
         # Draw the detected lines
-        if detected_lines is not None:
-            for line in detected_lines:
-                x1, y1, x2, y2 = line
-                cv2.line(frame, (x1, y1), (x2, y2), (0, 0, 0), 2)
+        #if detected_lines is not None:
+        #    for line in detected_lines:
+        #        x1, y1, x2, y2 = line
+        #        cv2.line(frame, (x1, y1), (x2, y2), (0, 0, 0), 2)
 
         # Draw the intersection points
-        if intersection_points:
-            for point in intersection_points:
-                cv2.circle(frame, point, 5, (255, 255, 255), -1)
+        #if intersection_points:
+        #    for point in intersection_points:
+        #        cv2.circle(frame, point, 5, (255, 255, 255), -1)
 
         # Draw detected circles for balls
         for (x, y, radius) in detected_balls:
             center = (int(x), int(y))
             cv2.circle(frame, center, radius, (0, 255, 0), 2)
+
+        goal = (600, 240)
+
+        cv2.circle(frame, goal, 2, (255,255,0), 2)
 
         # Draw rectangles for robots
         if yellow_robot is not None:
@@ -297,7 +303,7 @@ def detect_table_tennis_balls_and_robots():
         #    print("Black Robot: Top Left =", black_robot[0], "Bottom Right =", black_robot[1])
 
         # Calculate the distance and angle between the robot and the nearest ball
-        if detected_balls and black_robot:
+        if detected_balls and black_robot and yellow_robot:
             black_robot_center = ((black_robot[0][0] + black_robot[1][0]) // 2,
                                   (black_robot[0][1] + black_robot[1][1]) // 2)
 
@@ -308,23 +314,98 @@ def detect_table_tennis_balls_and_robots():
 
             distances = [calculate_distance(black_robot_center, ball_center) for ball_center in ball_centers]
             min_distance = min(distances)
-            nearest_ball_index = distances.index(min_distance)
-            nearest_ball_center = ball_centers[nearest_ball_index]
-            angle = calculate_angle(yellow_robot_center, nearest_ball_center)
+
+            # Find the indices of balls that are at least 10 pixels away from the robots
+            valid_ball_indices = [i for i, ball_center in enumerate(ball_centers) if
+                                  calculate_distance(black_robot_center, ball_center) >= 30 and calculate_distance(
+                                      yellow_robot_center, ball_center) >= 40]
+
+            # Filter the ball centers and distances based on the valid indices
+            filtered_ball_centers = [ball_centers[i] for i in valid_ball_indices]
+            filtered_distances = [distances[i] for i in valid_ball_indices]
+
+            if filtered_distances:
+                nearest_ball_index = filtered_distances.index(min(filtered_distances))
+                nearest_ball_center = filtered_ball_centers[nearest_ball_index]
+            else:
+                # Handle the case when there are no valid balls
+                nearest_ball_index = None
+                nearest_ball_center = None
+
+            #min_distance = min(filtered_distances)
+            if(lifts >= 3):
+                nearest_ball_center = goal
+
+            if nearest_ball_center is not None:
+                angle = calculate_angle(yellow_robot_center, nearest_ball_center)
+            else:
+                angle = 0
 
             direction = calculate_angle(yellow_robot_center, black_robot_center)
 
-            print(f"the robot is pointing in the direction: {direction:.2f}")
-            print(f"Distance to nearest ball: {min_distance:.2f} pixels")
-            print(f"Angle to face nearest ball: {angle:.2f} degrees")
-            print(yellow_robot_center)
-            print(black_robot_center)
-            print(nearest_ball_center)
-            # if min_distance > 30:
-            # drive()
-            # else:
-            # print("BEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEPPPPP")
+            # print(f"the robot is pointing in the direction: {direction:.2f}")
+            # print(f"Distance to nearest ball: {min_distance:.2f} pixels")
+            # print(f"Angle to face nearest ball: {angle:.2f} degrees")
+            # print(yellow_robot_center)
+            # print(black_robot_center)
+            # print(nearest_ball_center)
+            # print(count)
 
+
+
+            angledif = int(angle) - int(direction)
+            lest = int(340*(angledif/90))
+
+            test = str(int(lest))
+
+            if(count > 300):
+                count = 0
+
+                if (lifts >= 3 ):
+                    print("help")
+                    print(direction - angle)
+                    count=250
+                    if((direction - angle) < 188 and (direction -angle) > 172):
+                        drive("4", "20", "basd")
+                        time.sleep(4)
+                        ralese()
+                        lifts = 0
+                    elif((direction - angle) > 195 and (direction -angle) < 145):
+                        turn_right("0","140")
+                    else:
+                        turn_right("0","40")
+                        print(angledif)
+                        lastangle =(direction)
+                        print(test)
+                        # print(min_distance)
+
+                elif((lastangle < (direction +5) and lastangle > (direction -5)) and lifts < 10):
+                    drive("1", "90")
+                    time.sleep(1)
+                    turn_right("0, 100")
+                    time.sleep(1)
+                    drive("1", "20", "dsda")
+
+                elif(angledif < 6 and angledif > -6):
+                    drive("2","45")
+                    time.sleep(2)
+                    lift()
+                    time.sleep(2)
+                    reverse()
+                    lifts = lifts +1
+                elif(angledif > 0):
+                    turn_right(0, test)
+                    count = 160
+
+                else:
+                    drive("1", "20", "dsad")
+                    count = 160
+                    turn_right(0, test)
+
+
+
+
+        count= count+1
         # Exit if 'q' is pressed
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
@@ -335,4 +416,8 @@ def detect_table_tennis_balls_and_robots():
 
 
 # Call the function to detect table tennis balls and black robots from the camera
+drive("3","100")
+time.sleep(3)
+drive("3", "100", "dsada")
+time.sleep(3)
 detect_table_tennis_balls_and_robots()
